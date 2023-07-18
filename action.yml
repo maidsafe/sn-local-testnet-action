@@ -1,0 +1,217 @@
+name: Safe Local Testnet Action
+description: Administer local testnets using the testnet binary
+inputs:
+  action:
+    description: Start or stop a local testnet
+    required: true
+  build:
+    description: Build from source rather than use the latest released testnet
+    type: boolean
+    default: false
+  interval:
+    description: Interval between node starts in milliseconds. Default is 1000.
+    type: number
+    default: 1000
+  log_file_prefix:
+    description: The prefix given to the log files that are uploaded
+  node-path:
+    description: The location of the node binary
+  platform:
+    description: The platform the action is running on
+    required: true
+  set-safe-peers:
+    description: There are some cases where setting SAFE_PEERS must be skipped
+    type: boolean
+    default: true
+
+runs:
+  using: "composite"
+  steps:
+    #
+    # Setup
+    #
+    - name: install ripgrep
+      if: inputs.platform == 'ubuntu-latest'
+      shell: bash
+      run: sudo apt-get -y install ripgrep
+    - name: install ripgrep mac
+      if: inputs.platform == 'macos-latest'
+      shell: bash
+      run: brew install ripgrep
+    - name: install ripgrep windows
+      if: inputs.platform == 'windows-latest'
+      shell: pwsh
+      run: choco install ripgrep
+    #
+    # Starting the Network
+    #
+    - name: install testnet (linux)
+      if: inputs.platform == 'ubuntu-latest' && inputs.action == 'start'
+      env:
+        TESTNET_BIN_URL: https://sn-testnet.s3.amazonaws.com/testnet-latest-x86_64-unknown-linux-musl.tar.gz
+      shell: bash
+      run: |
+        if [[ "${{ inputs.build }}" == "true" ]]; then
+          cargo build --release --bin testnet
+          sudo mv target/release/testnet /usr/local/bin
+        else
+          curl -L -O $TESTNET_BIN_URL
+          mkdir testnet
+          tar xvf testnet-latest-x86_64-unknown-linux-musl.tar.gz -C testnet
+          rm testnet-latest-x86_64-unknown-linux-musl.tar.gz
+          sudo mv testnet/testnet /usr/local/bin
+        fi
+        testnet --version
+
+    - name: install testnet (macOS)
+      if: inputs.platform == 'macos-latest' && inputs.action == 'start'
+      env:
+        TESTNET_BIN_URL: https://sn-testnet.s3.amazonaws.com/testnet-latest-x86_64-apple-darwin.tar.gz
+      shell: bash
+      run: |
+        if [[ "${{ inputs.build }}" == "true" ]]; then
+          cargo build --release --bin testnet
+          sudo mv target/release/testnet /usr/local/bin
+        else
+          curl -L -O $TESTNET_BIN_URL
+          mkdir testnet
+          tar xvf testnet-latest-x86_64-apple-darwin.tar.gz -C testnet
+          rm testnet-latest-x86_64-apple-darwin.tar.gz
+          sudo mv testnet/testnet /usr/local/bin
+        fi
+        testnet --version
+
+    - name: install testnet (windows)
+      if: inputs.platform == 'windows-latest' && inputs.action == 'start'
+      env:
+        TESTNET_BIN_URL: https://sn-testnet.s3.amazonaws.com/testnet-latest-x86_64-pc-windows-msvc.tar.gz
+      shell: pwsh
+      run: |
+        # This is a location that's on the Path variable on the GHA Windows machine.
+        $destination = "C:\Users\runneradmin\AppData\Local\Microsoft\WindowsApps"
+        $buildFromSource = [bool]::Parse("${{ inputs.build }}")
+
+        if ($buildFromSource -eq $true) {
+          cargo build --release --bin testnet
+          Copy-Item target/release/testnet.exe -Destination $destination
+        } else {
+          $url = "https://sn-testnet.s3.amazonaws.com/testnet-latest-x86_64-pc-windows-msvc.tar.gz"
+          $downloadPath = "C:\temp\testnet-latest-x86_64-pc-windows-msvc.tar.gz"
+          $extractedTarPath = "C:\temp\testnet-latest-x86_64-pc-windows-msvc.tar"
+          $extractPath = "C:\temp\"
+
+          Invoke-WebRequest -Uri $url -OutFile $downloadPath
+          7z e $downloadPath -o"$extractPath"
+          7z x $extractedTarPath -o"$extractPath"
+          Copy-Item ($extractPath + "testnet.exe") -Destination $destination
+        }
+        testnet --version
+
+    # Even though these two steps are the same, you seem required to specify a shell inside
+    # an action, which doesn't seem to be the case in the calling workflow.
+    - name: start testnet (Linux/macOS)
+      if: inputs.platform != 'windows-latest' && inputs.action == 'start'
+      env:
+        SN_LOG: "all"
+      shell: bash
+      run: testnet --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }}
+
+    - name: start testnet (Windows)
+      if: inputs.platform == 'windows-latest' && inputs.action == 'start'
+      env:
+        SN_LOG: "all"
+      shell: pwsh
+      run: testnet --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }}
+
+    - name: Set SAFE_PEERS (Linux)
+      if: |
+        inputs.platform == 'ubuntu-latest' &&
+        inputs.action == 'start' &&
+        inputs.set-safe-peers == 'true'
+      shell: bash
+      run: |
+        node_data_path="/home/runner/.local/share/safe/node"
+        safe_peers=$(rg "listening on \".+\"" "$node_data_path" -u | rg '/ip4.*$' -m1 -o | rg '"' -r '')
+        echo "SAFE_PEERS=$safe_peers" >> $GITHUB_ENV
+
+    - name: Set SAFE_PEERS (macOS)
+      if: |
+        inputs.platform == 'macos-latest' &&
+        inputs.action == 'start' &&
+        inputs.set-safe-peers == 'true'
+      shell: bash
+      run: |
+        node_data_path="/Users/runner/Library/Application Support/safe/node"
+        safe_peers=$(rg "listening on \".+\"" "$node_data_path" -u | rg '/ip4.*$' -m1 -o | rg '"' -r '')
+        echo "SAFE_PEERS=$safe_peers" >> $GITHUB_ENV
+
+    - name: Set SAFE_PEERS (windows)
+      if: |
+        inputs.platform == 'windows-latest' &&
+        inputs.action == 'start' &&
+        inputs.set-safe-peers == 'true'
+      shell: pwsh
+      run: |
+        $node_data_path = "C:\Users\runneradmin\AppData\Roaming\safe\node"
+        $safe_peers = rg 'listening on ".+"' "$node_data_path" -u | `
+            rg '/ip4.*$' -m1 -o
+        $env:SAFE_PEERS = $safe_peers.Trim('"')
+        Add-Content -Path $env:GITHUB_ENV -Value "SAFE_PEERS=$env:SAFE_PEERS"
+    #
+    # Stopping the Network
+    #
+    - name: Kill all nodes (unix)
+      if: inputs.platform != 'windows-latest' && inputs.action == 'stop'
+      shell: bash
+      run: |
+        pkill safenode
+        echo "$(pgrep safenode | wc -l) nodes still running"
+
+    - name: Kill all nodes (windows)
+      if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
+      shell: pwsh
+      run: Get-Process safenode | Stop-Process -Force
+
+    - name: Tar log files (Linux)
+      if: inputs.platform == 'ubuntu-latest' && inputs.action == 'stop'
+      shell: bash
+      run: |
+        find "/home/runner/.local/share/safe/node" -iname '*.log*' | \
+          tar -zcvf log_files.tar.gz --files-from -
+
+    - name: Tar log files (macOS)
+      if: inputs.platform == 'macos-latest' && inputs.action == 'stop'
+      shell: bash
+      run: |
+        find "/Users/runner/Library/Application Support/safe/node" -iname '*.log*' | \
+          tar -zcvf log_files.tar.gz --files-from -
+
+    - name: Tar log files (windows)
+      if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
+      shell: pwsh
+      run: |
+        $sourceDirectories = "C:\Users\runneradmin\AppData\Roaming\safe\node"
+        $extension = "*.log*"
+        $logFiles = Get-ChildItem -Path $sourceDirectories -Filter $extension -Recurse -File
+        $destDirectory = Get-Location
+        $tempDirectory = New-Item -ItemType Directory -Force -Path "$destDirectory\temp"
+
+        $logFiles | ForEach-Object { 
+            $dest = $tempDirectory.FullName + $_.FullName.SubString($sourceDirectories.length)
+            $null = New-Item -ItemType File -Force -Path $dest
+            Copy-Item -Path $_.FullName -Destination $dest 
+        }
+
+        Set-Location -Path $destDirectory
+        7z a -ttar 'logs.tar' .\temp\*
+        7z a -tgzip 'log_files.tar.gz' 'logs.tar'
+
+        Remove-Item -Recurse -Force 'temp'
+        Remove-Item 'logs.tar'
+
+    - name: Upload node logs
+      if: inputs.action == 'stop'
+      uses: actions/upload-artifact@main
+      with:
+        name: ${{inputs.log_file_prefix}}_${{inputs.platform}}
+        path: log_files.tar.gz
