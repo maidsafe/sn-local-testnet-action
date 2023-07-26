@@ -13,6 +13,7 @@ Github Action for administering local testnets.
     action: start
     interval: 2000
     node-path: target/release/safenode
+    faucet-path: target/release/faucet
     platform: ubuntu-latest
 ```
 For other input options, see the `action.yml`.
