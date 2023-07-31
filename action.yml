@@ -176,40 +176,64 @@ runs:
 
     - name: Tar log files (Linux)
       if: inputs.platform == 'ubuntu-latest' && inputs.action == 'stop'
+      env:
+        ROOT_DIR: "/home/runner/.local/share/safe/"
       shell: bash
       run: |
-        find "/home/runner/.local/share/safe/node" -iname '*.log*' | \
-          tar -zcvf log_files.tar.gz --files-from -
+        find "${ROOT_DIR}node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
+        find "${ROOT_DIR}client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+        find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
 
     - name: Tar log files (macOS)
       if: inputs.platform == 'macos-latest' && inputs.action == 'stop'
+      env:
+        ROOT_DIR: "/Users/runner/Library/Application Support/safe/"
       shell: bash
       run: |
-        find "/Users/runner/Library/Application Support/safe/node" -iname '*.log*' | \
-          tar -zcvf log_files.tar.gz --files-from -
+        find "${ROOT_DIR}node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
+        find "${ROOT_DIR}client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+        find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
 
     - name: Tar log files (windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
       shell: pwsh
       run: |
-        $sourceDirectories = "C:\Users\runneradmin\AppData\Roaming\safe\node"
+        $rootDirectory = "C:\Users\runneradmin\AppData\Roaming\safe\"
+        $sourceDirectories = @("${rootDirectory}node", "${rootDirectory}client")
         $extension = "*.log*"
-        $logFiles = Get-ChildItem -Path $sourceDirectories -Filter $extension -Recurse -File
         $destDirectory = Get-Location
-        $tempDirectory = New-Item -ItemType Directory -Force -Path "$destDirectory\temp"
 
-        $logFiles | ForEach-Object { 
-            $dest = $tempDirectory.FullName + $_.FullName.SubString($sourceDirectories.length)
-            $null = New-Item -ItemType File -Force -Path $dest
-            Copy-Item -Path $_.FullName -Destination $dest 
+        foreach ($sourceDirectory in $sourceDirectories) {
+            if (!(Test-Path -Path $sourceDirectory)) {
+                Write-Host "Directory $sourceDirectory does not exist, skipping"
+                continue
+            }
+
+            $tempDirectory = New-Item -ItemType Directory -Force -Path "$destDirectory\temp"
+            $logFiles = Get-ChildItem -Path $sourceDirectory -Filter $extension -Recurse -File
+
+            $logFiles | ForEach-Object { 
+                $dest = $tempDirectory.FullName + $_.FullName.SubString($sourceDirectory.length)
+                $null = New-Item -ItemType File -Force -Path $dest
+                Copy-Item -Path $_.FullName -Destination $dest 
+            }
+
+            $archiveName = ($sourceDirectory -split '\\')[-1] + '_log_files.tar.gz'
+
+            Set-Location -Path $destDirectory
+            7z a -ttar 'logs.tar' .\temp\*
+            7z a -tgzip $archiveName 'logs.tar'
+
+            Remove-Item -Recurse -Force 'temp'
+            Remove-Item 'logs.tar'
         }
-
-        Set-Location -Path $destDirectory
-        7z a -ttar 'logs.tar' .\temp\*
+        
+        # Creating a single tarball with both client and node logs
+        Get-ChildItem . -Filter *_log_files.tar.gz | % {7z a -ttar 'logs.tar' $_.FullName}
         7z a -tgzip 'log_files.tar.gz' 'logs.tar'
-
-        Remove-Item -Recurse -Force 'temp'
         Remove-Item 'logs.tar'
+        Remove-Item *_log_files.tar.gz
+
 
     - name: Upload node logs
       if: inputs.action == 'stop'
