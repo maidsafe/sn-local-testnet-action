@@ -177,29 +177,29 @@ runs:
     - name: Tar log files (Linux)
       if: inputs.platform == 'ubuntu-latest' && inputs.action == 'stop'
       env:
-        ROOT_DIR: "/home/runner/.local/share/safe/"
+        ROOT_DIR: "/home/runner/.local/share/safe"
       shell: bash
       run: |
-        find "${ROOT_DIR}node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
-        find "${ROOT_DIR}client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+        find "${ROOT_DIR}/node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
+        find "${ROOT_DIR}/client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
         find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
 
     - name: Tar log files (macOS)
       if: inputs.platform == 'macos-latest' && inputs.action == 'stop'
       env:
-        ROOT_DIR: "/Users/runner/Library/Application Support/safe/"
+        ROOT_DIR: "/Users/runner/Library/Application Support/safe"
       shell: bash
       run: |
-        find "${ROOT_DIR}node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
-        find "${ROOT_DIR}client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+        find "${ROOT_DIR}/node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
+        find "${ROOT_DIR}/client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
         find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
 
     - name: Tar log files (windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
       shell: pwsh
       run: |
-        $rootDirectory = "C:\Users\runneradmin\AppData\Roaming\safe\"
-        $sourceDirectories = @("${rootDirectory}node", "${rootDirectory}client")
+        $rootDirectory = "C:\Users\runneradmin\AppData\Roaming\safe"
+        $sourceDirectories = @("${rootDirectory}\node", "${rootDirectory}\client")
         $extension = "*.log*"
         $destDirectory = Get-Location
 
@@ -228,9 +228,13 @@ runs:
             Remove-Item 'logs.tar'
         }
         
-        # Creating a single tarball with both client and node logs
-        Get-ChildItem . -Filter *_log_files.tar.gz | % {7z a -ttar 'logs.tar' $_.FullName}
+        # Convert all the generated compressed logs into a single tarball and then to a tar.gz
+        $logFiles = Get-ChildItem . -Filter *_log_files.tar.gz 
+        foreach ($file in $logFiles) {
+            7z a -ttar 'logs.tar' $file.FullName
+        }
         7z a -tgzip 'log_files.tar.gz' 'logs.tar'
+        
         Remove-Item 'logs.tar'
         Remove-Item *_log_files.tar.gz
 
