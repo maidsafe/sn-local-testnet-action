@@ -180,8 +180,12 @@ runs:
         ROOT_DIR: "/home/runner/.local/share/safe"
       shell: bash
       run: |
-        find "${ROOT_DIR}/node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
-        find "${ROOT_DIR}/client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+        if [ -d "${ROOT_DIR}/node" ]; then
+            find "${ROOT_DIR}/node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
+        fi
+        if [ -d "${ROOT_DIR}/client" ]; then
+            find "${ROOT_DIR}/client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+        fi
         find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
 
     - name: Tar log files (macOS)
@@ -190,8 +194,12 @@ runs:
         ROOT_DIR: "/Users/runner/Library/Application Support/safe"
       shell: bash
       run: |
-        find "${ROOT_DIR}/node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
-        find "${ROOT_DIR}/client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+        if [ -d "${ROOT_DIR}/node" ]; then
+            find "${ROOT_DIR}/node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
+        fi
+        if [ -d "${ROOT_DIR}/client" ]; then
+            find "${ROOT_DIR}/client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+        fi
         find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
 
     - name: Tar log files (windows)
