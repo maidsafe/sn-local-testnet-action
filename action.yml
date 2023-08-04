@@ -13,7 +13,7 @@ inputs:
     type: number
     default: 1000
   log_file_prefix:
-    description: The prefix given to the log files that are uploaded
+    description: The prefix given to the log files that are uploaded. Logs are not uploaded if value not set.
   node-path:
     description: The location of the node binary
   faucet-path:
@@ -189,7 +189,7 @@ runs:
         find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
 
     - name: Tar log files (macOS)
-      if: inputs.platform == 'macos-latest' && inputs.action == 'stop'
+      if: inputs.platform == 'macos-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
       env:
         ROOT_DIR: "/Users/runner/Library/Application Support/safe"
       shell: bash
@@ -203,7 +203,7 @@ runs:
         find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
 
     - name: Tar log files (windows)
-      if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
+      if: inputs.platform == 'windows-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
       shell: pwsh
       run: |
         $rootDirectory = "C:\Users\runneradmin\AppData\Roaming\safe"
@@ -248,7 +248,7 @@ runs:
 
 
     - name: Upload node logs
-      if: inputs.action == 'stop'
+      if: inputs.action == 'stop' && inputs.log_file_prefix != ''
       uses: actions/upload-artifact@main
       with:
         name: ${{inputs.log_file_prefix}}_${{inputs.platform}}
