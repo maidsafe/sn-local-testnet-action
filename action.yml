@@ -174,33 +174,41 @@ runs:
       shell: pwsh
       run: Get-Process safenode | Stop-Process -Force
 
-    - name: Tar log files (Linux)
+    - name: Copy and Tar log files (Linux)
       if: inputs.platform == 'ubuntu-latest' && inputs.action == 'stop'
       env:
         ROOT_DIR: "/home/runner/.local/share/safe"
       shell: bash
       run: |
+        mkdir tmpdir
         if [ -d "${ROOT_DIR}/node" ]; then
-            find "${ROOT_DIR}/node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
+            cp "${ROOT_DIR}/node"/*.log* tmpdir/
+            tar -zcvf node_log_files.tar.gz -C tmpdir .
         fi
         if [ -d "${ROOT_DIR}/client" ]; then
-            find "${ROOT_DIR}/client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+            cp "${ROOT_DIR}/client"/*.log* tmpdir/
+            tar -zcvf client_log_files.tar.gz -C tmpdir .
         fi
-        find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
+        tar -zcvf log_files.tar.gz *.tar.gz
+        rm -r tmpdir
 
-    - name: Tar log files (macOS)
+    - name: Copy and Tar log files (macOS)
       if: inputs.platform == 'macos-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
       env:
         ROOT_DIR: "/Users/runner/Library/Application Support/safe"
       shell: bash
       run: |
+        mkdir tmpdir
         if [ -d "${ROOT_DIR}/node" ]; then
-            find "${ROOT_DIR}/node" -iname '*.log*' | tar -zcvf node_log_files.tar.gz --files-from -
+            cp "${ROOT_DIR}/node"/*.log* tmpdir/
+            tar -zcvf node_log_files.tar.gz -C tmpdir .
         fi
         if [ -d "${ROOT_DIR}/client" ]; then
-            find "${ROOT_DIR}/client" -iname '*.log*' | tar -zcvf client_log_files.tar.gz --files-from -
+            cp "${ROOT_DIR}/client"/*.log* tmpdir/
+            tar -zcvf client_log_files.tar.gz -C tmpdir .
         fi
-        find . -iname '*log_files.tar.gz' | tar -zcvf log_files.tar.gz --files-from -
+        tar -zcvf log_files.tar.gz *.tar.gz
+        rm -r tmpdir
 
     - name: Tar log files (windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
