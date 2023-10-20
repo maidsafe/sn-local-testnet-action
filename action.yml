@@ -175,21 +175,14 @@ runs:
       run: Get-Process safenode | Stop-Process -Force
 
     - name: Copy and Tar log files (Linux)
-      if: inputs.platform == 'ubuntu-latest' && inputs.action == 'stop'
+      if: inputs.platform == 'ubuntu-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
       env:
         ROOT_DIR: "/home/runner/.local/share/safe"
       shell: bash
       run: |
         mkdir tmpdir
-        if [ -d "${ROOT_DIR}/node" ]; then
-            cp "${ROOT_DIR}/node"/*.log* tmpdir/
-            tar -zcvf node_log_files.tar.gz -C tmpdir .
-        fi
-        if [ -d "${ROOT_DIR}/client" ]; then
-            cp "${ROOT_DIR}/client"/*.log* tmpdir/
-            tar -zcvf client_log_files.tar.gz -C tmpdir .
-        fi
-        tar -zcvf log_files.tar.gz *.tar.gz
+        cp -R "${ROOT_DIR}" tmpdir/
+        find tmpdir -iname '*.log*' | tar -zcvf log_files.tar.gz --files-from -
         rm -r tmpdir
 
     - name: Copy and Tar log files (macOS)
@@ -199,15 +192,8 @@ runs:
       shell: bash
       run: |
         mkdir tmpdir
-        if [ -d "${ROOT_DIR}/node" ]; then
-            cp "${ROOT_DIR}/node"/*.log* tmpdir/
-            tar -zcvf node_log_files.tar.gz -C tmpdir .
-        fi
-        if [ -d "${ROOT_DIR}/client" ]; then
-            cp "${ROOT_DIR}/client"/*.log* tmpdir/
-            tar -zcvf client_log_files.tar.gz -C tmpdir .
-        fi
-        tar -zcvf log_files.tar.gz *.tar.gz
+        cp -R "${ROOT_DIR}" tmpdir/
+        find tmpdir -iname '*.log*' | tar -zcvf log_files.tar.gz --files-from -
         rm -r tmpdir
 
     - name: Tar log files (windows)
