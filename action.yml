@@ -12,6 +12,10 @@ inputs:
     description: Interval between node starts in milliseconds. Default is 1000.
     type: number
     default: 1000
+  join:
+    description: If set, any nodes that are launched will join an existing testnet.
+    type: boolean
+    default: false
   log_file_prefix:
     description: The prefix given to the log files that are uploaded. Logs are not uploaded if value not set.
   node-path:
@@ -116,14 +120,14 @@ runs:
       env:
         SN_LOG: "all"
       shell: bash
-      run: testnet --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
+      run: testnet ${{ inputs.join == 'true' && '--join' || '' } --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
 
     - name: start testnet (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'start'
       env:
         SN_LOG: "all"
       shell: pwsh
-      run: testnet --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
+      run: testnet ${{ inputs.join == 'true' && '--join' || '' } --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
 
     - name: Set SAFE_PEERS (Linux)
       if: |
