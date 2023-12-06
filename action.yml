@@ -120,14 +120,14 @@ runs:
       env:
         SN_LOG: "all"
       shell: bash
-      run: testnet ${{ inputs.join == 'true' && '--join' || '' } --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
+      run: testnet ${{ inputs.join == 'true' && '--join' || '' }} --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
 
     - name: start testnet (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'start'
       env:
         SN_LOG: "all"
       shell: pwsh
-      run: testnet ${{ inputs.join == 'true' && '--join' || '' } --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
+      run: testnet ${{ inputs.join == 'true' && '--join' || '' }} --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
 
     - name: Set SAFE_PEERS (Linux)
       if: |
