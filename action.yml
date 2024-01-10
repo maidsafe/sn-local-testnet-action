@@ -5,27 +5,33 @@ inputs:
     description: Start or stop a local testnet
     required: true
   build:
-    description: Build from source rather than use the latest released testnet
+    description: Build the node manager from source. Useful for testing.
     type: boolean
     default: false
+  faucet-path:
+    description: The location of the faucet binary
   interval:
     description: Interval between node starts in milliseconds. Default is 1000.
     type: number
     default: 1000
-  node-count: 
-    description: The number of nodes for the testnet. Defaults to 25.
-    type: number
-    default: 25
   join:
     description: If set, any nodes that are launched will join an existing testnet.
     type: boolean
     default: false
   log_file_prefix:
     description: The prefix given to the log files that are uploaded. Logs are not uploaded if value not set.
+  node-count: 
+    description: The number of nodes for the testnet. Defaults to 25.
+    type: number
+    default: 25
+  node-manager-branch:
+    description: Use with the build argument to specify the branch to build
+    default: main
+  node-manager-repo-owner:
+    description: Use with the build argument to specify the repository to use
+    default: maidsafe
   node-path:
     description: The location of the node binary
-  faucet-path:
-    description: The location of the faucet binary
   platform:
     description: The platform the action is running on
     required: true
@@ -58,80 +64,99 @@ runs:
     - name: install testnet (linux)
       if: inputs.platform == 'ubuntu-latest' && inputs.action == 'start'
       env:
-        TESTNET_BIN_URL: https://sn-testnet.s3.amazonaws.com/testnet-latest-x86_64-unknown-linux-musl.tar.gz
+        NODE_MANAGER_URL: https://sn-node-manager.s3.eu-west-2.amazonaws.com/safenode-manager-latest-x86_64-unknown-linux-musl.tar.gz
       shell: bash
       run: |
         if [[ "${{ inputs.build }}" == "true" ]]; then
-          cargo build --release --bin testnet
-          sudo mv target/release/testnet /usr/local/bin
+          TEMP_DIR=$(mktemp -d)
+          git clone -b ${{ inputs.node-manager-branch }} \
+            https://github.com/${{ inputs.node-manager-repo-owner }}/sn-node-manager \
+            $TEMP_DIR/sn-node-manager
+          cd $TEMP_DIR/sn-node-manager
+          cargo build --release
+          sudo mv target/release/safenode-manager /usr/local/bin
         else
-          curl -L -O $TESTNET_BIN_URL
-          mkdir testnet
-          tar xvf testnet-latest-x86_64-unknown-linux-musl.tar.gz -C testnet
-          rm testnet-latest-x86_64-unknown-linux-musl.tar.gz
-          sudo mv testnet/testnet /usr/local/bin
+          curl -L -O $NODE_MANAGER_URL
+          mkdir node_manager
+          tar xvf safenode-manager-latest-x86_64-unknown-linux-musl.tar.gz -C node_manager
+          rm safenode-manager-latest-x86_64-unknown-linux-musl.tar.gz
+          sudo mv node_manager/safenode-manager /usr/local/bin
+          safenode-manager --version
         fi
-        testnet --version
 
     - name: install testnet (macOS)
       if: inputs.platform == 'macos-latest' && inputs.action == 'start'
       env:
-        TESTNET_BIN_URL: https://sn-testnet.s3.amazonaws.com/testnet-latest-x86_64-apple-darwin.tar.gz
+        NODE_MANAGER_URL: https://sn-node-manager.s3.eu-west-2.amazonaws.com/safenode-manager-latest-x86_64-apple-darwin.tar.gz
       shell: bash
       run: |
         if [[ "${{ inputs.build }}" == "true" ]]; then
-          cargo build --release --bin testnet
-          sudo mv target/release/testnet /usr/local/bin
+          TEMP_DIR=$(mktemp -d)
+          git clone -b ${{ inputs.node-manager-branch }} \
+            https://github.com/${{ inputs.node-manager-repo-owner }}/sn-node-manager \
+            $TEMP_DIR/sn-node-manager
+          cd $TEMP_DIR/sn-node-manager
+          cargo build --release
+          sudo mv target/release/safenode-manager /usr/local/bin
         else
-          curl -L -O $TESTNET_BIN_URL
-          mkdir testnet
-          tar xvf testnet-latest-x86_64-apple-darwin.tar.gz -C testnet
-          rm testnet-latest-x86_64-apple-darwin.tar.gz
-          sudo mv testnet/testnet /usr/local/bin
+          curl -L -O $NODE_MANAGER_URL
+          mkdir node_manager
+          tar xvf safenode-manager-latest-x86_64-apple-darwin.tar.gz -C node_manager
+          rm safenode-manager-latest-x86_64-apple-darwin.tar.gz
+          sudo mv node_manager/safenode-manager /usr/local/bin
+          safenode-manager --version
         fi
-        testnet --version
 
     - name: install testnet (windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'start'
-      env:
-        TESTNET_BIN_URL: https://sn-testnet.s3.amazonaws.com/testnet-latest-x86_64-pc-windows-msvc.tar.gz
       shell: pwsh
       run: |
         # This is a location that's on the Path variable on the GHA Windows machine.
         $destination = "C:\Users\runneradmin\AppData\Local\Microsoft\WindowsApps"
-        $buildFromSource = [bool]::Parse("${{ inputs.build }}")
+        $url = "https://sn-node-manager.s3.eu-west-2.amazonaws.com/safenode-manager-latest-x86_64-pc-windows-msvc.tar.gz"
+        $downloadPath = "safenode-manager-latest-x86_64-pc-windows-msvc.tar.gz"
+        $extractedTarPath = "C:\temp\safenode-manager-latest-x86_64-pc-windows-msvc.tar"
+        $extractPath = "C:\temp\"
 
-        if ($buildFromSource -eq $true) {
-          cargo build --release --bin testnet
-          Copy-Item target/release/testnet.exe -Destination $destination
-        } else {
-          $url = "https://sn-testnet.s3.amazonaws.com/testnet-latest-x86_64-pc-windows-msvc.tar.gz"
-          $downloadPath = "C:\temp\testnet-latest-x86_64-pc-windows-msvc.tar.gz"
-          $extractedTarPath = "C:\temp\testnet-latest-x86_64-pc-windows-msvc.tar"
-          $extractPath = "C:\temp\"
-
-          Invoke-WebRequest -Uri $url -OutFile $downloadPath
-          7z e $downloadPath -o"$extractPath"
-          7z x $extractedTarPath -o"$extractPath"
-          Copy-Item ($extractPath + "testnet.exe") -Destination $destination
-        }
-        testnet --version
+        Invoke-WebRequest -Uri $url -OutFile $downloadPath
+        7z e $downloadPath -o"$extractPath"
+        7z x $extractedTarPath -o"$extractPath"
+        Copy-Item ($extractPath + "safenode-manager.exe") -Destination $destination
+        safenode-manager --version
 
     # Even though these two steps are the same, you seem required to specify a shell inside
     # an action, which doesn't seem to be the case in the calling workflow.
     - name: start testnet (Linux/macOS)
       if: inputs.platform != 'windows-latest' && inputs.action == 'start'
-      env:
-        SN_LOG: "all"
       shell: bash
-      run: testnet ${{ inputs.join == 'true' && '--join' || '' }} --node-count ${{ inputs.node-count }} --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
+      run: |
+        if [[ "${{ inputs.join }}" == "true" ]]; then
+          safenode-manager join \
+            --count ${{ inputs.node-count }} \
+            --node-path ${{ inputs.node-path }} \
+            --faucet-path ${{ inputs.faucet-path }}
+        else
+          safenode-manager run \
+            --count ${{ inputs.node-count }} \
+            --node-path ${{ inputs.node-path }} \
+            --faucet-path ${{ inputs.faucet-path }}
+        fi
 
     - name: start testnet (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'start'
-      env:
-        SN_LOG: "all"
       shell: pwsh
-      run: testnet ${{ inputs.join == 'true' && '--join' || '' }} --node-count ${{ inputs.node-count }} --interval ${{ inputs.interval }} --node-path ${{ inputs.node-path }} --faucet-path ${{ inputs.faucet-path }}
+      run: |
+        if ("${{ inputs.join }}" -eq "true") {
+          safenode-manager join `
+            --count ${{ inputs.node-count }} `
+            --node-path ${{ inputs.node-path }} `
+            --faucet-path ${{ inputs.faucet-path }}
+        } else {
+          safenode-manager run `
+            --count ${{ inputs.node-count }} `
+            --node-path ${{ inputs.node-path }} `
+            --faucet-path ${{ inputs.faucet-path }}
+        }
 
     - name: Set SAFE_PEERS (Linux)
       if: |
@@ -173,14 +198,12 @@ runs:
     - name: Kill all nodes (unix)
       if: inputs.platform != 'windows-latest' && inputs.action == 'stop'
       shell: bash
-      run: |
-        pkill safenode
-        echo "$(pgrep safenode | wc -l) nodes still running"
+      run: safenode-manager kill --keep-directories
 
     - name: Kill all nodes (windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
       shell: pwsh
-      run: Get-Process safenode | Stop-Process -Force
+      run: safenode-manager kill --keep-directories
 
     - name: Copy and Tar log files (Linux)
       if: inputs.platform == 'ubuntu-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
@@ -247,7 +270,6 @@ runs:
         
         Remove-Item 'logs.tar'
         Remove-Item *_log_files.tar.gz
-
 
     - name: Upload node logs
       if: inputs.action == 'stop' && inputs.log_file_prefix != ''
