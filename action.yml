@@ -35,6 +35,10 @@ inputs:
   platform:
     description: The platform the action is running on
     required: true
+  service:
+    description: Set this to run the network as services rather than processes
+    type: boolean
+    default: false
   set-safe-peers:
     description: There are some cases where setting SAFE_PEERS must be skipped
     type: boolean
@@ -61,10 +65,11 @@ runs:
     #
     # Starting the Network
     #
-    - name: install testnet (linux)
+    - name: install node manager (linux)
       if: inputs.platform == 'ubuntu-latest' && inputs.action == 'start'
       env:
         NODE_MANAGER_URL: https://sn-node-manager.s3.eu-west-2.amazonaws.com/safenode-manager-latest-x86_64-unknown-linux-musl.tar.gz
+        SERVICE_NETWORK_SCRIPT_URL: https://raw.githubusercontent.com/jacderida/sn-node-manager/backwards-compat-test/resources/run_local_service_network.sh
       shell: bash
       run: |
         if [[ "${{ inputs.build }}" == "true" ]]; then
@@ -75,19 +80,22 @@ runs:
           cd $TEMP_DIR/sn-node-manager
           cargo build --release
           sudo mv target/release/safenode-manager /usr/local/bin
+          sudo cp resources/run_local_service_network.sh /usr/local/bin
         else
           curl -L -O $NODE_MANAGER_URL
           mkdir node_manager
           tar xvf safenode-manager-latest-x86_64-unknown-linux-musl.tar.gz -C node_manager
           rm safenode-manager-latest-x86_64-unknown-linux-musl.tar.gz
           sudo mv node_manager/safenode-manager /usr/local/bin
+          sudo curl $SERVICE_NETWORK_SCRIPT_URL > /usr/local/bin/run_local_service_network.sh
           safenode-manager --version
         fi
 
-    - name: install testnet (macOS)
+    - name: install node manager (macOS)
       if: inputs.platform == 'macos-latest' && inputs.action == 'start'
       env:
         NODE_MANAGER_URL: https://sn-node-manager.s3.eu-west-2.amazonaws.com/safenode-manager-latest-x86_64-apple-darwin.tar.gz
+        SERVICE_NETWORK_SCRIPT_URL: https://raw.githubusercontent.com/jacderida/sn-node-manager/backwards-compat-test/resources/run_local_service_network.sh
       shell: bash
       run: |
         if [[ "${{ inputs.build }}" == "true" ]]; then
@@ -98,16 +106,18 @@ runs:
           cd $TEMP_DIR/sn-node-manager
           cargo build --release
           sudo mv target/release/safenode-manager /usr/local/bin
+          sudo cp resources/run_local_service_network.sh /usr/local/bin
         else
           curl -L -O $NODE_MANAGER_URL
           mkdir node_manager
           tar xvf safenode-manager-latest-x86_64-apple-darwin.tar.gz -C node_manager
           rm safenode-manager-latest-x86_64-apple-darwin.tar.gz
           sudo mv node_manager/safenode-manager /usr/local/bin
+          sudo curl $SERVICE_NETWORK_SCRIPT_URL > /usr/local/bin/run_local_service_network.sh
           safenode-manager --version
         fi
 
-    - name: install testnet (windows)
+    - name: install node manager (windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'start'
       shell: pwsh
       run: |
@@ -126,7 +136,7 @@ runs:
 
     # Even though these two steps are the same, you seem required to specify a shell inside
     # an action, which doesn't seem to be the case in the calling workflow.
-    - name: start testnet (Linux/macOS)
+    - name: start the network (Linux/macOS)
       if: inputs.platform != 'windows-latest' && inputs.action == 'start'
       shell: bash
       run: |
@@ -135,6 +145,10 @@ runs:
             --count ${{ inputs.node-count }} \
             --node-path ${{ inputs.node-path }} \
             --faucet-path ${{ inputs.faucet-path }}
+        elif [[ "${{ inputs.service }}" == "true" ]]; then
+          /usr/local/bin/run_local_service_network.sh "${{ inputs.node-count }}"
+          sleep 10
+          sudo safenode-manager status --fail # Fail if any nodes aren't running
         else
           safenode-manager run \
             --count ${{ inputs.node-count }} \
@@ -142,7 +156,7 @@ runs:
             --faucet-path ${{ inputs.faucet-path }}
         fi
 
-    - name: start testnet (Windows)
+    - name: start the network (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'start'
       shell: pwsh
       run: |
