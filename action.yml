@@ -68,20 +68,11 @@ runs:
       shell: bash
       run: |
         if [[ "${{ inputs.build }}" == "true" ]]; then
-          TEMP_DIR=$(mktemp -d)
-          git clone -b ${{ inputs.node-manager-branch }} \
-            https://github.com/${{ inputs.node-manager-repo-owner }}/sn-node-manager \
-            $TEMP_DIR/sn-node-manager
-          cd $TEMP_DIR/sn-node-manager
-          cargo build --release
+          cargo build --release --bin safenode-manager
           sudo mv target/release/safenode-manager /usr/local/bin
         else
-          curl -L -O $NODE_MANAGER_URL
-          mkdir node_manager
-          tar xvf safenode-manager-latest-x86_64-unknown-linux-musl.tar.gz -C node_manager
-          rm safenode-manager-latest-x86_64-unknown-linux-musl.tar.gz
-          sudo mv node_manager/safenode-manager /usr/local/bin
-          safenode-manager --version
+          echo "Support for downloading the node manager will be implemented soon"
+          exit 1
         fi
 
     - name: install testnet (macOS)
@@ -92,19 +83,11 @@ runs:
       run: |
         if [[ "${{ inputs.build }}" == "true" ]]; then
           TEMP_DIR=$(mktemp -d)
-          git clone -b ${{ inputs.node-manager-branch }} \
-            https://github.com/${{ inputs.node-manager-repo-owner }}/sn-node-manager \
-            $TEMP_DIR/sn-node-manager
-          cd $TEMP_DIR/sn-node-manager
-          cargo build --release
+          cargo build --release --bin safenode-manager
           sudo mv target/release/safenode-manager /usr/local/bin
         else
-          curl -L -O $NODE_MANAGER_URL
-          mkdir node_manager
-          tar xvf safenode-manager-latest-x86_64-apple-darwin.tar.gz -C node_manager
-          rm safenode-manager-latest-x86_64-apple-darwin.tar.gz
-          sudo mv node_manager/safenode-manager /usr/local/bin
-          safenode-manager --version
+          echo "Support for downloading the node manager will be implemented soon"
+          exit 1
         fi
 
     - name: install testnet (windows)
@@ -118,11 +101,13 @@ runs:
         $extractedTarPath = "C:\temp\safenode-manager-latest-x86_64-pc-windows-msvc.tar"
         $extractPath = "C:\temp\"
 
-        Invoke-WebRequest -Uri $url -OutFile $downloadPath
-        7z e $downloadPath -o"$extractPath"
-        7z x $extractedTarPath -o"$extractPath"
-        Copy-Item ($extractPath + "safenode-manager.exe") -Destination $destination
-        safenode-manager --version
+        if ("${{ inputs.build }}" -eq "true") {
+          cargo build --release --bin safenode-manager
+          Copy-Item .\target\release\safenode-manager.exe -Destination $destination
+        } else {
+          echo "Support for downloading the node manager will be implemented soon"
+          exit 1
+        }
 
     # Even though these two steps are the same, you seem required to specify a shell inside
     # an action, which doesn't seem to be the case in the calling workflow.
