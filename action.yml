@@ -46,18 +46,18 @@ runs:
     #
     # Setup
     #
-    - name: install ripgrep
+    - name: install jq and ripgrep ubuntu
       if: inputs.platform == 'ubuntu-latest'
       shell: bash
-      run: sudo apt-get -y install ripgrep
-    - name: install ripgrep mac
+      run: sudo apt-get -y install jq ripgrep
+    - name: install jq and ripgrep mac
       if: inputs.platform == 'macos-latest'
       shell: bash
-      run: brew install ripgrep
-    - name: install ripgrep windows
+      run: brew install jq ripgrep
+    - name: install jq and ripgrep windows
       if: inputs.platform == 'windows-latest'
       shell: pwsh
-      run: choco install ripgrep
+      run: choco install jq ripgrep
     #
     # Starting the Network
     #
@@ -150,9 +150,10 @@ runs:
         inputs.set-safe-peers == 'true'
       shell: bash
       run: |
-        node_data_path="/home/runner/.local/share/safe/node"
-        safe_peers=$(rg "listening on \".+\"" "$node_data_path" -u | rg '/ip4.*$' -m1 -o | rg '"' -r '')
-        echo "SAFE_PEERS=$safe_peers" >> $GITHUB_ENV
+        manager_registry_path="/home/runner/.local/share/safe/local_node_registry.json"
+        listen_addr=$(jq -r '.nodes[0].listen_addr[0]' $manager_registry_path)
+        echo "listen_addr: $listen_addr"
+        echo "SAFE_PEERS=$listen_addr" >> $GITHUB_ENV
 
     - name: Set SAFE_PEERS (macOS)
       if: |
@@ -161,9 +162,10 @@ runs:
         inputs.set-safe-peers == 'true'
       shell: bash
       run: |
-        node_data_path="/Users/runner/Library/Application Support/safe/node"
-        safe_peers=$(rg "listening on \".+\"" "$node_data_path" -u | rg '/ip4.*$' -m1 -o | rg '"' -r '')
-        echo "SAFE_PEERS=$safe_peers" >> $GITHUB_ENV
+        manager_registry_path="/Users/runner/Library/Application Support/safe/local_node_registry.json"
+        listen_addr=$(jq -r '.nodes[0].listen_addr[0]' "$manager_registry_path")
+        echo "listen_addr: $listen_addr"
+        echo "SAFE_PEERS=$listen_addr" >> $GITHUB_ENV
 
     - name: Set SAFE_PEERS (windows)
       if: |
@@ -172,11 +174,10 @@ runs:
         inputs.set-safe-peers == 'true'
       shell: pwsh
       run: |
-        $node_data_path = "C:\Users\runneradmin\AppData\Roaming\safe\node"
-        $safe_peers = rg 'listening on ".+"' "$node_data_path" -u | `
-            rg '/ip4.*$' -m1 -o
-        $env:SAFE_PEERS = $safe_peers.Trim('"')
-        Add-Content -Path $env:GITHUB_ENV -Value "SAFE_PEERS=$env:SAFE_PEERS"
+        $manager_registry_path = "C:\Users\runneradmin\AppData\Roaming\safe\local_node_registry.json"
+        $listen_addr = jq -r '.nodes[0].listen_addr[0]' $manager_registry_path
+        Write-Host "listen_addr: $listen_addr"
+        Add-Content -Path $env:GITHUB_ENV -Value "SAFE_PEERS=$listen_addr"
     #
     # Stopping the Network
     #
