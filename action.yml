@@ -116,12 +116,12 @@ runs:
       shell: bash
       run: |
         if [[ "${{ inputs.join }}" == "true" ]]; then
-          safenode-manager join \
+          safenode-manager local join \
             --count ${{ inputs.node-count }} \
             --node-path ${{ inputs.node-path }} \
             --faucet-path ${{ inputs.faucet-path }}
         else
-          safenode-manager run \
+          safenode-manager local run \
             --count ${{ inputs.node-count }} \
             --node-path ${{ inputs.node-path }} \
             --faucet-path ${{ inputs.faucet-path }}
@@ -132,12 +132,12 @@ runs:
       shell: pwsh
       run: |
         if ("${{ inputs.join }}" -eq "true") {
-          safenode-manager join `
+          safenode-manager local join `
             --count ${{ inputs.node-count }} `
             --node-path ${{ inputs.node-path }} `
             --faucet-path ${{ inputs.faucet-path }}
         } else {
-          safenode-manager run `
+          safenode-manager local run `
             --count ${{ inputs.node-count }} `
             --node-path ${{ inputs.node-path }} `
             --faucet-path ${{ inputs.faucet-path }}
@@ -184,12 +184,12 @@ runs:
     - name: Kill all nodes (unix)
       if: inputs.platform != 'windows-latest' && inputs.action == 'stop'
       shell: bash
-      run: safenode-manager kill --keep-directories
+      run: safenode-manager local kill --keep-directories
 
     - name: Kill all nodes (windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
       shell: pwsh
-      run: safenode-manager kill --keep-directories
+      run: safenode-manager local kill --keep-directories
 
     - name: Upload log files (Linux)
       if: inputs.platform == 'ubuntu-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
