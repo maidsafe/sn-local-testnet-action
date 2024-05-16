@@ -32,6 +32,13 @@ inputs:
     default: maidsafe
   node-path:
     description: The location of the node binary
+  owner:
+    description: >
+      Assign each node this owner. This argument and `owner-prefix` are mutually exclusive.
+  owner-prefix:
+    description: >
+      Each node will be assigned an individual owner, based on this prefix.
+      This argument and `owner-prefix` are mutually exclusive.
   platform:
     description: The platform the action is running on
     required: true
@@ -115,33 +122,57 @@ runs:
       if: inputs.platform != 'windows-latest' && inputs.action == 'start'
       shell: bash
       run: |
+        command="safenode-manager "
         if [[ "${{ inputs.join }}" == "true" ]]; then
-          safenode-manager local join \
-            --count ${{ inputs.node-count }} \
-            --node-path ${{ inputs.node-path }} \
-            --faucet-path ${{ inputs.faucet-path }}
+          command="$command local join "
         else
-          safenode-manager local run \
-            --count ${{ inputs.node-count }} \
-            --node-path ${{ inputs.node-path }} \
-            --faucet-path ${{ inputs.faucet-path }}
+          command="$command local run "
         fi
+
+        command="$command --count ${{ inputs.node-count }} "
+        command="$command --node-path ${{ inputs.node-path }} "
+        command="$command --faucet-path ${{ inputs.faucet-path }} "
+
+        # These arguments are mutually exclusive, but `safenode-manager` will assert that at the
+        # beginning, so there's no need for us to do it here.
+        [[ -n "${{ inputs.owner }}" ]] && command="$command --owner ${{ inputs.owner }}"
+        [[ -n "${{ inputs.owner-prefix }}" ]] && command="$command --owner-prefix ${{ inputs.owner-prefix }}"
+
+        echo "Will run safenode-manager with: $command"
+        eval $command
 
     - name: start testnet (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'start'
       shell: pwsh
       run: |
+        $command = "safenode-manager "
         if ("${{ inputs.join }}" -eq "true") {
-          safenode-manager local join `
-            --count ${{ inputs.node-count }} `
-            --node-path ${{ inputs.node-path }} `
-            --faucet-path ${{ inputs.faucet-path }}
+          $command += "local join "
         } else {
-          safenode-manager local run `
-            --count ${{ inputs.node-count }} `
-            --node-path ${{ inputs.node-path }} `
-            --faucet-path ${{ inputs.faucet-path }}
+          $command += "local run "
         }
+
+        $command += "--count ${{ inputs.node-count }} "
+        $command += "--node-path ${{ inputs.node-path }} "
+        $command += "--faucet-path ${{ inputs.faucet-path }} "
+
+        if (-not [string]::IsNullOrEmpty("${{ inputs.owner }}")) {
+          $command += "--owner ${{ inputs.owner }} "
+        }
+
+        $command += "--count ${{ inputs.node-count }} "
+        $command += "--node-path ${{ inputs.node-path }} "
+        $command += "--faucet-path ${{ inputs.faucet-path }} "
+
+        if (-not [string]::IsNullOrEmpty("${{ inputs.owner }}")) {
+          $command += "--owner ${{ inputs.owner }} "
+        }
+        if (-not [string]::IsNullOrEmpty("${{ inputs.owner-prefix }}")) {
+          $command += "--owner-prefix ${{ inputs.owner-prefix }} "
+        }
+
+        Write-Host "Will run safenode-manager with: $command"
+        Invoke-Expression $command
 
     - name: Set SAFE_PEERS (Linux)
       if: |
