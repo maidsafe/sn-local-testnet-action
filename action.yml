@@ -159,14 +159,6 @@ runs:
         if (-not [string]::IsNullOrEmpty("${{ inputs.owner }}")) {
           $command += "--owner ${{ inputs.owner }} "
         }
-
-        $command += "--count ${{ inputs.node-count }} "
-        $command += "--node-path ${{ inputs.node-path }} "
-        $command += "--faucet-path ${{ inputs.faucet-path }} "
-
-        if (-not [string]::IsNullOrEmpty("${{ inputs.owner }}")) {
-          $command += "--owner ${{ inputs.owner }} "
-        }
         if (-not [string]::IsNullOrEmpty("${{ inputs.owner-prefix }}")) {
           $command += "--owner-prefix ${{ inputs.owner-prefix }} "
         }
