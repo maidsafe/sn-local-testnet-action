@@ -8,12 +8,10 @@ inputs:
     description: Build the node manager from source. Useful for testing.
     type: boolean
     default: false
-  faucet-path:
-    description: The location of the faucet binary
-  interval:
-    description: Interval between node starts in milliseconds. Default is 1000.
-    type: number
-    default: 1000
+  enable-evm-testnet:
+    description: Enable the EVM testnet
+    type: boolean
+    default: false
   join:
     description: If set, any nodes that are launched will join an existing testnet.
     type: boolean
@@ -42,6 +40,9 @@ inputs:
   platform:
     description: The platform the action is running on
     required: true
+  rewards-address: 
+    description: The node reward address
+    default: "0x03B770D9cD32077cC0bF330c13C114a87643B124"
   set-safe-peers:
     description: There are some cases where setting SAFE_PEERS must be skipped
     type: boolean
@@ -65,6 +66,46 @@ runs:
       if: inputs.platform == 'windows-latest'
       shell: pwsh
       run: choco install jq ripgrep
+
+    - name: install foundary
+      if: inputs.enable-evm-testnet == 'true'
+      shell: bash
+      run: curl -L https://foundry.paradigm.xyz | bash
+
+    - name: move foundry bins to path (linux)
+      if: inputs.enable-evm-testnet == 'true' && inputs.platform == 'ubuntu-latest'
+      shell: bash
+      run: sudo mv /home/runner/.config/.foundry/bin/* /usr/local/bin
+    
+    - name: move foundry bins to path (macos)
+      if: inputs.enable-evm-testnet == 'true' && inputs.platform == 'macos-latest'
+      shell: bash
+      run: sudo mv /Users/runner/.foundry/bin/* /usr/local/bin
+    
+    - name: move foundry bins to path (windows)
+      if: inputs.enable-evm-testnet == 'true' && inputs.platform == 'windows-latest'
+      shell: pwsh
+      run: Copy-Item -Path C:\Users\runneradmin\.foundry\bin\* -Destination C:\Users\runneradmin\AppData\Local\Microsoft\WindowsApps
+
+    - name: run foundry
+      if: inputs.enable-evm-testnet == 'true'
+      shell: bash
+      run: foundryup
+
+    - name: move anvil and other bins to path (linux)
+      if: inputs.enable-evm-testnet == 'true' && inputs.platform == 'ubuntu-latest'
+      shell: bash
+      run: sudo mv /home/runner/.config/.foundry/bin/* /usr/local/bin
+    
+    - name: move anvil and other bins to path (macos)
+      if: inputs.enable-evm-testnet == 'true' && inputs.platform == 'macos-latest'
+      shell: bash
+      run: sudo mv /Users/runner/.foundry/bin/* /usr/local/bin
+    
+    - name: move anvil and other bins to path (windows)
+      if: inputs.enable-evm-testnet == 'true' && inputs.platform == 'windows-latest'
+      shell: pwsh
+      run: Copy-Item -Path C:\Users\runneradmin\.foundry\bin\* -Destination C:\Users\runneradmin\AppData\Local\Microsoft\WindowsApps
     #
     # Starting the Network
     #
@@ -77,6 +118,10 @@ runs:
         if [[ "${{ inputs.build }}" == "true" ]]; then
           cargo build --release --bin safenode-manager
           sudo mv target/release/safenode-manager /usr/local/bin
+          if [[ "${{ inputs.enable-evm-testnet }}" == "true" ]]; then
+            cargo build --release --bin evm_testnet
+            sudo mv target/release/evm_testnet /usr/local/bin
+          fi
         else
           echo "Support for downloading the node manager will be implemented soon"
           exit 1
@@ -92,6 +137,10 @@ runs:
           TEMP_DIR=$(mktemp -d)
           cargo build --release --bin safenode-manager
           sudo mv target/release/safenode-manager /usr/local/bin
+          if [[ "${{ inputs.enable-evm-testnet }}" == "true" ]]; then
+            cargo build --release --bin evm_testnet
+            sudo mv target/release/evm_testnet /usr/local/bin
+          fi
         else
           echo "Support for downloading the node manager will be implemented soon"
           exit 1
@@ -111,14 +160,24 @@ runs:
         if ("${{ inputs.build }}" -eq "true") {
           cargo build --release --bin safenode-manager
           Copy-Item .\target\release\safenode-manager.exe -Destination $destination
+          if ("${{ inputs.enable-evm-testnet }}" -eq "true") {
+            cargo build --release --bin evm_testnet
+            Copy-Item .\target\release\evm_testnet.exe -Destination $destination
+          }
         } else {
           echo "Support for downloading the node manager will be implemented soon"
           exit 1
         }
+    
+    - name: start evm testnet
+      if : inputs.action == 'start' && inputs.enable-evm-testnet == 'true'
+      shell: bash
+      run: |
+        evm_testnet &
 
     # Even though these two steps are the same, you seem required to specify a shell inside
     # an action, which doesn't seem to be the case in the calling workflow.
-    - name: start testnet (Linux/macOS)
+    - name: start local autonomi testnet (Linux/macOS)
       if: inputs.platform != 'windows-latest' && inputs.action == 'start'
       shell: bash
       run: |
@@ -131,17 +190,18 @@ runs:
 
         command="$command --count ${{ inputs.node-count }} "
         command="$command --node-path ${{ inputs.node-path }} "
-        command="$command --faucet-path ${{ inputs.faucet-path }} "
 
         # These arguments are mutually exclusive, but `safenode-manager` will assert that at the
         # beginning, so there's no need for us to do it here.
         [[ -n "${{ inputs.owner }}" ]] && command="$command --owner ${{ inputs.owner }}"
         [[ -n "${{ inputs.owner-prefix }}" ]] && command="$command --owner-prefix ${{ inputs.owner-prefix }}"
+        [[ "${{ inputs.enable-evm-testnet }}" == "true" ]] && command="$command --rewards-address ${{ inputs.rewards-address }}"
+        [[ "${{ inputs.enable-evm-testnet }}" == "true" ]] && command="$command evm-local"
 
         echo "Will run safenode-manager with: $command"
         eval $command
 
-    - name: start testnet (Windows)
+    - name: start local autonomi testnet (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'start'
       shell: pwsh
       run: |
@@ -154,7 +214,6 @@ runs:
 
         $command += "--count ${{ inputs.node-count }} "
         $command += "--node-path ${{ inputs.node-path }} "
-        $command += "--faucet-path ${{ inputs.faucet-path }} "
 
         if (-not [string]::IsNullOrEmpty("${{ inputs.owner }}")) {
           $command += "--owner ${{ inputs.owner }} "
@@ -162,11 +221,17 @@ runs:
         if (-not [string]::IsNullOrEmpty("${{ inputs.owner-prefix }}")) {
           $command += "--owner-prefix ${{ inputs.owner-prefix }} "
         }
+        if ("${{ inputs.enable-evm-testnet }}" -eq "true") {
+          $command += "--rewards-address ${{ inputs.rewards-address }} "
+        }
+        if ("${{ inputs.enable-evm-testnet }}" -eq "true") {
+          $command += "evm-local "
+        }
 
         Write-Host "Will run safenode-manager with: $command"
         Invoke-Expression $command
 
-    - name: Set SAFE_PEERS (Linux)
+    - name: Set SAFE_PEERS and EVM_NETWORK (Linux)
       if: |
         inputs.platform == 'ubuntu-latest' &&
         inputs.action == 'start' &&
@@ -177,8 +242,9 @@ runs:
         listen_addr=$(jq -r '.nodes[0].listen_addr[0]' $manager_registry_path)
         echo "listen_addr: $listen_addr"
         echo "SAFE_PEERS=$listen_addr" >> $GITHUB_ENV
+        echo "EVM_NETWORK=local" >> $GITHUB_ENV
 
-    - name: Set SAFE_PEERS (macOS)
+    - name: Set SAFE_PEERS and EVM_NETWORK (macOS)
       if: |
         inputs.platform == 'macos-latest' &&
         inputs.action == 'start' &&
@@ -189,8 +255,9 @@ runs:
         listen_addr=$(jq -r '.nodes[0].listen_addr[0]' "$manager_registry_path")
         echo "listen_addr: $listen_addr"
         echo "SAFE_PEERS=$listen_addr" >> $GITHUB_ENV
+        echo "EVM_NETWORK=local" >> $GITHUB_ENV
 
-    - name: Set SAFE_PEERS (windows)
+    - name: Set SAFE_PEERS and EVM_NETWORK (windows)
       if: |
         inputs.platform == 'windows-latest' &&
         inputs.action == 'start' &&
@@ -201,9 +268,20 @@ runs:
         $listen_addr = jq -r '.nodes[0].listen_addr[0]' $manager_registry_path
         Write-Host "listen_addr: $listen_addr"
         Add-Content -Path $env:GITHUB_ENV -Value "SAFE_PEERS=$listen_addr"
+        Add-Content -Path $env:GITHUB_ENV -Value "EVM_NETWORK=local"
     #
     # Stopping the Network
     #
+    - name: Kill evm testnet (Linux/macOS)
+      if: inputs.platform != 'windows-latest' && inputs.action == 'stop'
+      shell: bash
+      run: pkill -f evm_testnet || true
+
+    - name: Kill evm testnet (Windows)
+      if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
+      shell: pwsh
+      run: Stop-Process -Name evm_testnet -ErrorAction SilentlyContinue
+
     - name: Kill all nodes (unix)
       if: inputs.platform != 'windows-latest' && inputs.action == 'stop'
       shell: bash
@@ -225,7 +303,7 @@ runs:
         path: |
           ~/.local/share/safe/node/*/logs/*.log*
           ~/.local/share/safe/*/*/*.log*
-          ~/.local/share/safe/client/logs/*/*.log*
+          ~/.local/share/safe/autonomi_cli/logs/*/*.log*
 
     - name: Upload log files (macOs)
       if: inputs.platform == 'macos-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
@@ -236,7 +314,7 @@ runs:
         path: |
           /Users/runner/Library/Application Support/safe/node/*/logs/*.log*
           /Users/runner/Library/Application Support/safe/*/*/*.log*
-          /Users/runner/Library/Application Support/safe/client/logs/*/*.log*
+          /Users/runner/Library/Application Support/safe/autonomi_cli/logs/*/*.log*
 
     - name: Upload log files (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
@@ -247,4 +325,4 @@ runs:
         path: |
           C:\Users\runneradmin\AppData\Roaming\safe\node\*\logs\*.log*
           C:\Users\runneradmin\AppData\Roaming\safe\*\*\*.log*
-          C:\Users\runneradmin\AppData\Roaming\safe\client\logs\*\*.log*
+          C:\Users\runneradmin\AppData\Roaming\safe\autonomi_cli\logs\*\*.log*
