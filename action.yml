@@ -47,6 +47,9 @@ inputs:
     description: There are some cases where setting SAFE_PEERS must be skipped
     type: boolean
     default: true
+  sn-log:
+    description: The log level for the node processes
+    default: "v"
 
 runs:
   using: "composite"
@@ -174,6 +177,22 @@ runs:
       shell: bash
       run: |
         evm_testnet &
+
+    - name: Set SN_LOG (unix)
+      if: |
+        inputs.platform != 'windows-latest' &&
+        inputs.action == 'start'
+      shell: bash
+      run: |
+        echo "SN_LOG=${{ inputs.sn-log }}" >> $GITHUB_ENV
+
+    - name: Set SN_LOG (windows)
+      if: |
+        inputs.platform == 'windows-latest' &&
+        inputs.action == 'start'
+      shell: pwsh
+      run: |
+        Add-Content -Path $env:GITHUB_ENV -Value "SN_LOG=${{ inputs.sn-log }}"
 
     # Even though these two steps are the same, you seem required to specify a shell inside
     # an action, which doesn't seem to be the case in the calling workflow.
