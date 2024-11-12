@@ -181,7 +181,8 @@ runs:
     - name: Set SN_LOG (unix)
       if: |
         inputs.platform != 'windows-latest' &&
-        inputs.action == 'start'
+        inputs.action == 'start' &&
+        inputs.sn-log != ''
       shell: bash
       run: |
         echo "SN_LOG=${{ inputs.sn-log }}" >> $GITHUB_ENV
@@ -189,7 +190,8 @@ runs:
     - name: Set SN_LOG (windows)
       if: |
         inputs.platform == 'windows-latest' &&
-        inputs.action == 'start'
+        inputs.action == 'start' &&
+        inputs.sn-log != ''
       shell: pwsh
       run: |
         Add-Content -Path $env:GITHUB_ENV -Value "SN_LOG=${{ inputs.sn-log }}"
