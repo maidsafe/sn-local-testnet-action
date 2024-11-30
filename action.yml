@@ -1,4 +1,4 @@
-name: Safe Local Testnet Action
+name: Autonomi Local Testnet
 description: Administer local testnets using the testnet binary
 inputs:
   action:
@@ -122,8 +122,8 @@ runs:
           cargo build --release --bin safenode-manager --features local
           sudo mv target/release/safenode-manager /usr/local/bin
           if [[ "${{ inputs.enable-evm-testnet }}" == "true" ]]; then
-            cargo build --release --bin evm_testnet
-            sudo mv target/release/evm_testnet /usr/local/bin
+            cargo build --release --bin evm-testnet
+            sudo mv target/release/evm-testnet /usr/local/bin
           fi
         else
           echo "Support for downloading the node manager will be implemented soon"
@@ -141,8 +141,8 @@ runs:
           cargo build --release --bin safenode-manager --features local
           sudo mv target/release/safenode-manager /usr/local/bin
           if [[ "${{ inputs.enable-evm-testnet }}" == "true" ]]; then
-            cargo build --release --bin evm_testnet
-            sudo mv target/release/evm_testnet /usr/local/bin
+            cargo build --release --bin evm-testnet
+            sudo mv target/release/evm-testnet /usr/local/bin
           fi
         else
           echo "Support for downloading the node manager will be implemented soon"
@@ -164,8 +164,8 @@ runs:
           cargo build --release --bin safenode-manager --features local
           Copy-Item .\target\release\safenode-manager.exe -Destination $destination
           if ("${{ inputs.enable-evm-testnet }}" -eq "true") {
-            cargo build --release --bin evm_testnet
-            Copy-Item .\target\release\evm_testnet.exe -Destination $destination
+            cargo build --release --bin evm-testnet
+            Copy-Item .\target\release\evm-testnet.exe -Destination $destination
           }
         } else {
           echo "Support for downloading the node manager will be implemented soon"
@@ -176,7 +176,7 @@ runs:
       if : inputs.action == 'start' && inputs.enable-evm-testnet == 'true'
       shell: bash
       run: |
-        evm_testnet &
+        evm-testnet &
 
     - name: Set SN_LOG (unix)
       if: |
@@ -296,12 +296,12 @@ runs:
     - name: Kill evm testnet (Linux/macOS)
       if: inputs.platform != 'windows-latest' && inputs.action == 'stop'
       shell: bash
-      run: pkill -f evm_testnet || true
+      run: pkill -f evm-testnet || true
 
     - name: Kill evm testnet (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
       shell: pwsh
-      run: Stop-Process -Name evm_testnet -ErrorAction SilentlyContinue
+      run: Stop-Process -Name evm-testnet -ErrorAction SilentlyContinue
 
     - name: Kill all nodes (unix)
       if: inputs.platform != 'windows-latest' && inputs.action == 'stop'
