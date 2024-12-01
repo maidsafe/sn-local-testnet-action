@@ -114,13 +114,11 @@ runs:
     #
     - name: install testnet (linux)
       if: inputs.platform == 'ubuntu-latest' && inputs.action == 'start'
-      env:
-        NODE_MANAGER_URL: https://sn-node-manager.s3.eu-west-2.amazonaws.com/safenode-manager-latest-x86_64-unknown-linux-musl.tar.gz
       shell: bash
       run: |
         if [[ "${{ inputs.build }}" == "true" ]]; then
-          cargo build --release --bin safenode-manager --features local
-          sudo mv target/release/safenode-manager /usr/local/bin
+          cargo build --release --bin antctl --features local
+          sudo mv target/release/antctl /usr/local/bin
           if [[ "${{ inputs.enable-evm-testnet }}" == "true" ]]; then
             cargo build --release --bin evm-testnet
             sudo mv target/release/evm-testnet /usr/local/bin
@@ -132,14 +130,12 @@ runs:
 
     - name: install testnet (macOS)
       if: inputs.platform == 'macos-latest' && inputs.action == 'start'
-      env:
-        NODE_MANAGER_URL: https://sn-node-manager.s3.eu-west-2.amazonaws.com/safenode-manager-latest-x86_64-apple-darwin.tar.gz
       shell: bash
       run: |
         if [[ "${{ inputs.build }}" == "true" ]]; then
           TEMP_DIR=$(mktemp -d)
-          cargo build --release --bin safenode-manager --features local
-          sudo mv target/release/safenode-manager /usr/local/bin
+          cargo build --release --bin antctl --features local
+          sudo mv target/release/antctl /usr/local/bin
           if [[ "${{ inputs.enable-evm-testnet }}" == "true" ]]; then
             cargo build --release --bin evm-testnet
             sudo mv target/release/evm-testnet /usr/local/bin
@@ -155,14 +151,10 @@ runs:
       run: |
         # This is a location that's on the Path variable on the GHA Windows machine.
         $destination = "C:\Users\runneradmin\AppData\Local\Microsoft\WindowsApps"
-        $url = "https://sn-node-manager.s3.eu-west-2.amazonaws.com/safenode-manager-latest-x86_64-pc-windows-msvc.tar.gz"
-        $downloadPath = "safenode-manager-latest-x86_64-pc-windows-msvc.tar.gz"
-        $extractedTarPath = "C:\temp\safenode-manager-latest-x86_64-pc-windows-msvc.tar"
-        $extractPath = "C:\temp\"
 
         if ("${{ inputs.build }}" -eq "true") {
-          cargo build --release --bin safenode-manager --features local
-          Copy-Item .\target\release\safenode-manager.exe -Destination $destination
+          cargo build --release --bin antctl --features local
+          Copy-Item .\target\release\antctl.exe -Destination $destination
           if ("${{ inputs.enable-evm-testnet }}" -eq "true") {
             cargo build --release --bin evm-testnet
             Copy-Item .\target\release\evm-testnet.exe -Destination $destination
@@ -202,7 +194,7 @@ runs:
       if: inputs.platform != 'windows-latest' && inputs.action == 'start'
       shell: bash
       run: |
-        command="safenode-manager "
+        command="antctl "
         if [[ "${{ inputs.join }}" == "true" ]]; then
           command="$command local join "
         else
@@ -212,21 +204,21 @@ runs:
         command="$command --count ${{ inputs.node-count }} "
         command="$command --node-path ${{ inputs.node-path }} "
 
-        # These arguments are mutually exclusive, but `safenode-manager` will assert that at the
+        # These arguments are mutually exclusive, but `antctl` will assert that at the
         # beginning, so there's no need for us to do it here.
         [[ -n "${{ inputs.owner }}" ]] && command="$command --owner ${{ inputs.owner }}"
         [[ -n "${{ inputs.owner-prefix }}" ]] && command="$command --owner-prefix ${{ inputs.owner-prefix }}"
         [[ "${{ inputs.enable-evm-testnet }}" == "true" ]] && command="$command --rewards-address ${{ inputs.rewards-address }}"
         [[ "${{ inputs.enable-evm-testnet }}" == "true" ]] && command="$command evm-local"
 
-        echo "Will run safenode-manager with: $command"
+        echo "Will run antctl with: $command"
         eval $command
 
     - name: start local autonomi testnet (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'start'
       shell: pwsh
       run: |
-        $command = "safenode-manager "
+        $command = "antctl "
         if ("${{ inputs.join }}" -eq "true") {
           $command += "local join "
         } else {
@@ -249,7 +241,7 @@ runs:
           $command += "evm-local "
         }
 
-        Write-Host "Will run safenode-manager with: $command"
+        Write-Host "Will run antctl with: $command"
         Invoke-Expression $command
 
     - name: Set SAFE_PEERS and EVM_NETWORK (Linux)
@@ -259,7 +251,7 @@ runs:
         inputs.set-safe-peers == 'true'
       shell: bash
       run: |
-        manager_registry_path="/home/runner/.local/share/safe/local_node_registry.json"
+        manager_registry_path="/home/runner/.local/share/autonomi/local_node_registry.json"
         listen_addr=$(jq -r '.nodes[0].listen_addr[0]' $manager_registry_path)
         echo "listen_addr: $listen_addr"
         echo "SAFE_PEERS=$listen_addr" >> $GITHUB_ENV
@@ -272,7 +264,7 @@ runs:
         inputs.set-safe-peers == 'true'
       shell: bash
       run: |
-        manager_registry_path="/Users/runner/Library/Application Support/safe/local_node_registry.json"
+        manager_registry_path="/Users/runner/Library/Application Support/autonomi/local_node_registry.json"
         listen_addr=$(jq -r '.nodes[0].listen_addr[0]' "$manager_registry_path")
         echo "listen_addr: $listen_addr"
         echo "SAFE_PEERS=$listen_addr" >> $GITHUB_ENV
@@ -285,7 +277,7 @@ runs:
         inputs.set-safe-peers == 'true'
       shell: pwsh
       run: |
-        $manager_registry_path = "C:\Users\runneradmin\AppData\Roaming\safe\local_node_registry.json"
+        $manager_registry_path = "C:\Users\runneradmin\AppData\Roaming\autonomi\local_node_registry.json"
         $listen_addr = jq -r '.nodes[0].listen_addr[0]' $manager_registry_path
         Write-Host "listen_addr: $listen_addr"
         Add-Content -Path $env:GITHUB_ENV -Value "SAFE_PEERS=$listen_addr"
@@ -306,25 +298,25 @@ runs:
     - name: Kill all nodes (unix)
       if: inputs.platform != 'windows-latest' && inputs.action == 'stop'
       shell: bash
-      run: safenode-manager local kill --keep-directories
+      run: antctl local kill --keep-directories
 
     - name: Kill all nodes (windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop'
       shell: pwsh
-      run: safenode-manager local kill --keep-directories
+      run: antctl local kill --keep-directories
 
     - name: Upload log files (Linux)
       if: inputs.platform == 'ubuntu-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
       env:
-        ROOT_DIR: "/home/runner/.local/share/safe"
+        ROOT_DIR: "/home/runner/.local/share/autonomi"
       uses: actions/upload-artifact@main
       with:
         compression-level: 9
         name: ${{inputs.log_file_prefix}}_${{inputs.platform}}
         path: |
-          ~/.local/share/safe/node/*/logs/*.log*
-          ~/.local/share/safe/*/*/*.log*
-          ~/.local/share/safe/autonomi/logs/*/*.log*
+          ~/.local/share/autonomi/node/*/logs/*.log*
+          ~/.local/share/autonomi/*/*/*.log*
+          ~/.local/share/autonomi/autonomi/logs/*/*.log*
 
     - name: Upload log files (macOs)
       if: inputs.platform == 'macos-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
@@ -333,9 +325,9 @@ runs:
         compression-level: 9
         name: ${{inputs.log_file_prefix}}_${{inputs.platform}}
         path: |
-          /Users/runner/Library/Application Support/safe/node/*/logs/*.log*
-          /Users/runner/Library/Application Support/safe/*/*/*.log*
-          /Users/runner/Library/Application Support/safe/autonomi/logs/*/*.log*
+          /Users/runner/Library/Application Support/autonomi/node/*/logs/*.log*
+          /Users/runner/Library/Application Support/autonomi/*/*/*.log*
+          /Users/runner/Library/Application Support/autonomi/autonomi/logs/*/*.log*
 
     - name: Upload log files (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
@@ -344,6 +336,6 @@ runs:
         compression-level: 9
         name: ${{inputs.log_file_prefix}}_${{inputs.platform}}
         path: |
-          C:\Users\runneradmin\AppData\Roaming\safe\node\*\logs\*.log*
-          C:\Users\runneradmin\AppData\Roaming\safe\*\*\*.log*
-          C:\Users\runneradmin\AppData\Roaming\safe\autonomi\logs\*\*.log*
+          C:\Users\runneradmin\AppData\Roaming\autonomi\node\*\logs\*.log*
+          C:\Users\runneradmin\AppData\Roaming\autonomi\*\*\*.log*
+          C:\Users\runneradmin\AppData\Roaming\autonomi\autonomi\logs\*\*.log*
