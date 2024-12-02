@@ -248,7 +248,7 @@ runs:
       if: |
         inputs.platform == 'ubuntu-latest' &&
         inputs.action == 'start' &&
-        inputs.set-safe-peers == 'true'
+        inputs.set-ant-peers == 'true'
       shell: bash
       run: |
         manager_registry_path="/home/runner/.local/share/autonomi/local_node_registry.json"
@@ -261,7 +261,7 @@ runs:
       if: |
         inputs.platform == 'macos-latest' &&
         inputs.action == 'start' &&
-        inputs.set-safe-peers == 'true'
+        inputs.set-ant-peers == 'true'
       shell: bash
       run: |
         manager_registry_path="/Users/runner/Library/Application Support/autonomi/local_node_registry.json"
@@ -274,7 +274,7 @@ runs:
       if: |
         inputs.platform == 'windows-latest' &&
         inputs.action == 'start' &&
-        inputs.set-safe-peers == 'true'
+        inputs.set-ant-peers == 'true'
       shell: pwsh
       run: |
         $manager_registry_path = "C:\Users\runneradmin\AppData\Roaming\autonomi\local_node_registry.json"
