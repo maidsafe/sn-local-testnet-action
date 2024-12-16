@@ -314,9 +314,7 @@ runs:
         compression-level: 9
         name: ${{inputs.log_file_prefix}}_${{inputs.platform}}
         path: |
-          ~/.local/share/autonomi/node/*/logs/*.log*
-          ~/.local/share/autonomi/*/*/*.log*
-          ~/.local/share/autonomi/autonomi/logs/*/*.log*
+          ~/.local/share/autonomi/**/*.log*
 
     - name: Upload log files (macOs)
       if: inputs.platform == 'macos-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
@@ -325,9 +323,7 @@ runs:
         compression-level: 9
         name: ${{inputs.log_file_prefix}}_${{inputs.platform}}
         path: |
-          /Users/runner/Library/Application Support/autonomi/node/*/logs/*.log*
-          /Users/runner/Library/Application Support/autonomi/*/*/*.log*
-          /Users/runner/Library/Application Support/autonomi/autonomi/logs/*/*.log*
+          /Users/runner/Library/Application Support/autonomi/**/*.log*
 
     - name: Upload log files (Windows)
       if: inputs.platform == 'windows-latest' && inputs.action == 'stop' && inputs.log_file_prefix != ''
@@ -336,6 +332,4 @@ runs:
         compression-level: 9
         name: ${{inputs.log_file_prefix}}_${{inputs.platform}}
         path: |
-          C:\Users\runneradmin\AppData\Roaming\autonomi\node\*\logs\*.log*
-          C:\Users\runneradmin\AppData\Roaming\autonomi\*\*\*.log*
-          C:\Users\runneradmin\AppData\Roaming\autonomi\autonomi\logs\*\*.log*
+          C:\Users\runneradmin\AppData\Roaming\autonomi\**\*.log*
